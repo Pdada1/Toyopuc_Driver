@@ -164,7 +164,7 @@ class EtherNetIPAdapter:
             except OSError:
                 break
 
-            print(f"[TCP] Client connected: {addr}")
+            print(f"[TCP] Client connected: {addr} {conn}")
             self._handle_client(conn)
 
         print("[TCP] Server loop exited")
