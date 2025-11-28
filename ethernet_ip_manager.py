@@ -1,4 +1,7 @@
+# ethernet_ip_manager.py
+
 from typing import Optional
+
 from plc import PLC
 from tcp_udp_handler import TCPUDPHandler
 from ethernet_ip_adapter import EtherNetIPAdapter, PayloadCallback
@@ -6,7 +9,16 @@ from ethernet_ip_adapter import EtherNetIPAdapter, PayloadCallback
 
 class EthernetIPManager:
     """
-    Top-level manager that the user's main() interacts with.
+    Top-level wrapper for application code.
+
+    Public API
+    ----------
+    - open_connection(connect_timeout=None, handshake_timeout=None) -> bool
+    - start_cyclic(payload_callback=None, cycle_time=0.05)
+    - stop_cyclic(wait=True)
+    - get_last_t2o_payload()
+    - get_last_t2o_info()
+    - close()
     """
 
     def __init__(self, plc_cfg: PLC, bind_host: str = "0.0.0.0") -> None:
@@ -14,38 +26,39 @@ class EthernetIPManager:
         self.net = TCPUDPHandler(bind_host=bind_host)
         self.adapter = EtherNetIPAdapter(plc_cfg, self.net)
 
-    def open_connection(self, timeout: float | None = None) -> None:
-        """
-        - Setup TCP/UDP ports
-        - Wait for TCP connection
-        - Perform RegisterSession + Forward Open
-        """
-        self.adapter.open_and_wait_for_connection(timeout=timeout)
-        self.adapter.handle_tcp_handshake()
-
-    def run_cyclic(
+    def open_connection(
         self,
-        payload_callback: PayloadCallback | None = None,
+        connect_timeout: Optional[float] = None,
+        handshake_timeout: Optional[float] = None,
+    ) -> bool:
+        if not self.adapter.open_and_wait_for_connection(timeout=connect_timeout):
+            return False
+        return self.adapter.handle_tcp_handshake(timeout=handshake_timeout)
+
+    def start_cyclic(
+        self,
+        payload_callback: Optional[PayloadCallback] = None,
         cycle_time: float = 0.05,
     ) -> None:
         """
-        Start the UDP cyclic communication loop (blocking).
-
-        payload_callback(cycle_index, adapter) can update the payload each cycle.
+        Start UDP cyclic communication in a background thread.
         """
-        self.adapter.run_udp_cyclic(
+        self.adapter.start_udp_cyclic_thread(
             payload_callback=payload_callback,
             cycle_time=cycle_time,
         )
 
-    def close(self) -> None:
+    def stop_cyclic(self, wait: bool = True) -> None:
         """
-        Close TCP/UDP and clean up.
+        Request cyclic communication to stop.
         """
-        self.adapter.close()
-        
-    def get_last_t2o_payload(self) -> Optional[bytes]:
+        self.adapter.stop_udp_cyclic(wait=wait)
+
+    def get_last_t2o_payload(self):
         return self.adapter.get_last_t2o_payload()
 
-    def get_last_t2o_info(self) -> dict:
+    def get_last_t2o_info(self):
         return self.adapter.get_last_t2o_info()
+
+    def close(self) -> None:
+        self.adapter.close()
