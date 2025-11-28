@@ -225,9 +225,10 @@ class EtherNetIPAdapter:
     # ------------------------------------------------------------------ #
 
     def set_o2t_payload(self, data: bytes) -> None:
-        buf = bytearray(self.o2t_size_bytes)
-        buf[: min(len(data), self.o2t_size_bytes)] = data[:self.o2t_size_bytes]
-        self.o2t_payload = buf
+        with self._io_lock:
+            buf = bytearray(self.o2t_size_bytes)
+            buf[: min(len(data), self.o2t_size_bytes)] = data[:self.o2t_size_bytes]
+            self.o2t_payload = buf
 
     def get_last_t2o_payload(self) -> Optional[bytes]:
         return self.last_t2o_payload
