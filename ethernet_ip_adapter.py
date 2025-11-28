@@ -231,14 +231,16 @@ class EtherNetIPAdapter:
             self.o2t_payload = buf
 
     def get_last_t2o_payload(self) -> Optional[bytes]:
-        return self.last_t2o_payload
+        with self._io_lock:
+            return self.last_t2o_payload
 
     def get_last_t2o_info(self) -> Dict[str, Optional[Any]]:
-        return {
-            "payload": self.last_t2o_payload,
-            "cip_seq": self.last_t2o_cip_seq,
-            "addr": self.last_t2o_addr,
-        }
+        with self._io_lock:
+            return {
+                "payload": self.last_t2o_payload,
+                "cip_seq": self.last_t2o_cip_seq,
+                "addr": self.last_t2o_addr,
+            }
 
     # ------------------------------------------------------------------ #
     # Internal: TCP helpers + dispatch
@@ -394,9 +396,10 @@ class EtherNetIPAdapter:
         t2o_end = t2o_start + self.t2o_size_bytes
         t2o_payload = raw[t2o_start:t2o_end]
 
-        self.last_t2o_payload = t2o_payload
-        self.last_t2o_cip_seq = cip_seq_in
-        self.last_t2o_addr = addr
+        with self._io_lock:
+            self.last_t2o_payload = t2o_payload
+            self.last_t2o_cip_seq = cip_seq_in
+            self.last_t2o_addr = addr
 
         header_template = raw[:b1_payload_offset]
         b1_len_out = 2 + self.o2t_size_bytes

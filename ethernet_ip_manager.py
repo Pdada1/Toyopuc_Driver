@@ -33,7 +33,10 @@ class EthernetIPManager:
     ) -> bool:
         if not self.adapter.open_and_wait_for_connection(timeout=connect_timeout):
             return False
-        return self.adapter.handle_tcp_handshake(timeout=handshake_timeout)
+        if not self.adapter.handle_tcp_handshake(timeout=handshake_timeout):
+            self.adapter.close()
+            return False
+        return True
 
     def start_cyclic(
         self,
