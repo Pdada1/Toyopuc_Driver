@@ -24,13 +24,15 @@ class PLC:
     o2t_size_bytes : int
         Application payload bytes for O→T direction (excluding CIP seq).
     """
-    ip: str
-    tcp_port: int = 44818
-    udp_io_port: int = 0x08AE
-    t2o_assembly: int = 101
-    o2t_assembly: int = 100
-    t2o_size_bytes: int = 10
-    o2t_size_bytes: int = 10
+
+    def __init__(self, ip, tcp_port: int = 44818, udp_io_port: int = 0x08AE, t2o_assembly: int = 101, o2t_assembly: int = 100, t2o_size_bytes: int = 10, o2t_size_bytes: int = 10) -> None:
+        self.ip = ip
+        self.tcp_port = tcp_port
+        self.udp_io_port = udp_io_port
+        self.t2o_assembly=t2o_assembly
+        self.o2t_assembly=o2t_assembly
+        self.t2o_size_bytes=t2o_size_bytes
+        self.o2t_size_bytes=o2t_size_bytes
 
     @classmethod
     def from_json(cls, path: str) -> "PLC":

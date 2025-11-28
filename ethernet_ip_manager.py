@@ -1,7 +1,7 @@
 from typing import Optional
-from PLC import PLC
-from TCPUDPHandler import TCPUDPHandler
-from EtherNetIPAdapter import EtherNetIPAdapter, PayloadCallback
+from plc import PLC
+from tcp_udp_handler import TCPUDPHandler
+from ethernet_ip_adapter import EtherNetIPAdapter, PayloadCallback
 
 
 class EthernetIPManager:

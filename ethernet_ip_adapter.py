@@ -3,8 +3,8 @@ import struct
 import time
 from typing import Any, Dict, Optional, Tuple, List, Callable
 
-from PLC import PLC
-from TCPUDPHandler import TCPUDPHandler
+from plc import PLC
+from tcp_udp_handler import TCPUDPHandler
 
 
 PayloadCallback = Callable[[int, "EtherNetIPAdapter"], Optional[bytes]]
@@ -81,18 +81,22 @@ class EtherNetIPAdapter:
         )
         print("[ADAPTER] Waiting for TCP connection from PLC...")
 
+        connected = False
         start = time.time()
 
-        while True:
+        while not connected:
+            # Check for timeout
             if timeout is not None and (time.time() - start) > timeout:
                 raise TimeoutError("Timed out waiting for TCP connection")
 
             client = self.net.accept_client(timeout=1.0)
+
             if client is not None:
                 self.conn, addr = client
                 self.conn.settimeout(1.0)
                 print(f"[ADAPTER] TCP connected from {addr}")
-                break
+                connected = True
+
 
     def handle_tcp_handshake(self) -> None:
         """

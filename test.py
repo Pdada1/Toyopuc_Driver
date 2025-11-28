@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-from PLC import PLC
-from EthernetIPManager import EthernetIPManager
-from EtherNetIPAdapter import EtherNetIPAdapter
+from plc import PLC
+from ethernet_ip_manager import EthernetIPManager
+from ethernet_ip_adapter import EtherNetIPAdapter
 
 
 def payload_callback(cycle_index: int, adapter: EtherNetIPAdapter) -> bytes:
@@ -27,8 +27,9 @@ def main() -> None:
         t2o_size_bytes=10,
         o2t_size_bytes=10,
     )
+    
 
-    manager = EthernetIPManager(plc_cfg, bind_host="0.0.0.0")
+    manager = EthernetIPManager(plc_cfg, bind_host="192.168.0.37")
 
     try:
         manager.open_connection()
