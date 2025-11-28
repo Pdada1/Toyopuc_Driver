@@ -84,7 +84,7 @@ def parse_cpf(data: bytes) -> CPF:
 
     for _ in range(item_count):
         if len(data) < offset + 4:
-            break
+            raise ValueError(f"CPF truncated: expected {item_count} items, parsed {len(items)}")
         item_type, item_len = struct.unpack_from("<HH", data, offset)
         offset += 4
         item_data = data[offset:offset + item_len]
