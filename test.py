@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 import time
-import keyboard
+import time
+from plc import PLC
 from plc import PLC
 from ethernet_ip_manager import EthernetIPManager
 from ethernet_ip_adapter import EtherNetIPAdapter
