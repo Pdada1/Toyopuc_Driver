@@ -191,6 +191,8 @@ class EtherNetIPAdapter:
         command, length, sess, status = struct.unpack_from("<HHII", pkt, 0)
         sender_ctx = pkt[12:20]
         options, = struct.unpack_from("<I", pkt, 20)
+        if len(pkt) < 24 + length:
+            raise ValueError("EIP packet truncated")
         data = pkt[24:24 + length]
         return command, length, sess, status, sender_ctx, options, data
 
