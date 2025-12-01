@@ -54,7 +54,8 @@ def main() -> None:
     )
 
     print("[MAIN] Cyclic I/O running in background.")
-    
+    while keyboard.is_pressed("q") is False:
+        time.sleep(0.1)
     manager.stop_cyclic(wait=True)
     manager.close()
     print("[MAIN] Shutdown complete.")
