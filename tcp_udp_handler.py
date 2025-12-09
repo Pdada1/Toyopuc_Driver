@@ -1,100 +1,109 @@
+# tcp_udp_handler.py
+from __future__ import annotations
+
 import socket
 from typing import Optional, Tuple
+
+Addr = Tuple[str, int]
 
 
 class TCPUDPHandler:
     """
-    Thin wrapper around TCP/UDP socket handling.
+    Thin wrapper around TCP/UDP sockets.
 
-    This class JUST manages sockets and sending/receiving raw bytes.
-    The EtherNetIPAdapter is responsible for protocol-level logic.
+    Knows nothing about EtherNet/IP itself. Just:
+      - Creates/accepts TCP servers.
+      - Creates UDP sockets.
+      - Sends/receives raw bytes.
     """
 
     def __init__(self, bind_host: str = "0.0.0.0") -> None:
         self.bind_host = bind_host
-        self._tcp_server_sock: Optional[socket.socket] = None
-        self._udp_sock: Optional[socket.socket] = None
+        self.tcp_server: Optional[socket.socket] = None
+        self.udp_sock: Optional[socket.socket] = None
 
-    # --- TCP helpers --------------------------------------------------------
+    # ------------------------------------------------------------------
+    # TCP
+    # ------------------------------------------------------------------
 
-    def create_tcp_server(self, port: int, backlog: int = 5) -> socket.socket:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind((self.bind_host, port))
-        s.listen(backlog)
-        self._tcp_server_sock = s
-        print(f"[TCP] Listening on {self.bind_host}:{port}")
-        return s
+    def create_tcp_server(self, port: int) -> None:
+        if self.tcp_server is not None:
+            return
 
-    @property
-    def tcp_server_sock(self) -> Optional[socket.socket]:
-        return self._tcp_server_sock
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        srv.bind((self.bind_host, port))
+        srv.listen(1)
+        self.tcp_server = srv
 
     def accept_client(
-        self, timeout: float = 1.0
-    ) -> Optional[Tuple[socket.socket, Tuple[str, int]]]:
-        if self._tcp_server_sock is None:
-            return None
-        self._tcp_server_sock.settimeout(timeout)
+        self,
+        timeout: float = 1.0,
+    ) -> Optional[Tuple[socket.socket, Addr]]:
+        if self.tcp_server is None:
+            raise RuntimeError("TCP server not created")
+
+        self.tcp_server.settimeout(timeout)
         try:
-            return self._tcp_server_sock.accept()
-        except (socket.timeout, OSError):
+            conn, addr = self.tcp_server.accept()
+        except socket.timeout:
             return None
+        return conn, addr
 
-    @staticmethod
-    def recv_tcp(conn: socket.socket, bufsize: int = 2048) -> bytes:
-        return conn.recv(bufsize)
+    def send_tcp(self, conn: socket.socket, data: bytes) -> None:
+        conn.sendall(data)
 
-    @staticmethod
-    def send_tcp(conn: socket.socket, payload: bytes) -> None:
-        conn.sendall(payload)
+    # ------------------------------------------------------------------
+    # UDP
+    # ------------------------------------------------------------------
 
-    # --- UDP helpers --------------------------------------------------------
-
-    def create_udp_socket(self, port: int) -> socket.socket:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind((self.bind_host, port))
-        self._udp_sock = sock
-        print(f"[UDP] Bound on {self.bind_host}:{port}")
-        return sock
-
-    @property
-    def udp_sock(self) -> Optional[socket.socket]:
-        return self._udp_sock
-
-    def recv_udp(
-        self, bufsize: int = 2048, timeout: float = 1.0
-    ) -> Tuple[Optional[bytes], Optional[Tuple[str, int]]]:
-        if self._udp_sock is None:
-            return None, None
-        self._udp_sock.settimeout(timeout)
-        try:
-            data, addr = self._udp_sock.recvfrom(bufsize)
-            return data, addr
-        except (socket.timeout, OSError):
-            return None, None
-
-    def send_udp(self, payload: bytes, addr: Tuple[str, int]) -> None:
-        if self._udp_sock is None:
+    def create_udp_socket(self, port: int) -> None:
+        if self.udp_sock is not None:
             return
+
+        udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            self._udp_sock.sendto(payload, addr)
+            udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         except OSError:
             pass
+        udp.bind((self.bind_host, port))
+        self.udp_sock = udp
 
-    # --- Cleanup ------------------------------------------------------------
+    def recv_udp(
+        self,
+        bufsize: int = 2048,
+        timeout: float = 1.0,
+    ) -> Tuple[Optional[bytes], Optional[Addr]]:
+        if self.udp_sock is None:
+            raise RuntimeError("UDP socket not created")
+
+        self.udp_sock.settimeout(timeout)
+        try:
+            data, addr = self.udp_sock.recvfrom(bufsize)
+        except socket.timeout:
+            return None, None
+        return data, addr
+
+    def send_udp(self, data: bytes, addr: Addr) -> None:
+        if self.udp_sock is None:
+            raise RuntimeError("UDP socket not created")
+        self.udp_sock.sendto(data, addr)
+
+    # ------------------------------------------------------------------
+    # Cleanup
+    # ------------------------------------------------------------------
 
     def close(self) -> None:
-        if self._tcp_server_sock:
+        if self.tcp_server is not None:
             try:
-                self._tcp_server_sock.close()
+                self.tcp_server.close()
             except OSError:
                 pass
-            self._tcp_server_sock = None
+            self.tcp_server = None
 
-        if self._udp_sock:
+        if self.udp_sock is not None:
             try:
-                self._udp_sock.close()
+                self.udp_sock.close()
             except OSError:
                 pass
-            self._udp_sock = None
+            self.udp_sock = None

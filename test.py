@@ -1,64 +1,57 @@
-#!/usr/bin/env python3
+# main_toyopuc.py
+from __future__ import annotations
 
 import time
-import keyboard
+from typing import Final
+
 from plc import PLC
-from ethernet_ip_manager import EthernetIPManager
-from ethernet_ip_adapter import EtherNetIPAdapter
+from toyopuc_driver_api import ToyopucDriver
 
-
-def payload_callback(cycle_index: int, adapter: EtherNetIPAdapter) -> bytes:
-    """
-    Called in the adapter's background UDP thread once per cycle.
-
-    Use this to compute the O→T payload based on current program state
-    and the latest T→O data from the PLC.
-    """
-    last = adapter.get_last_t2o_payload()
-
-    # Example: debug-print every 50 cycles
-    if last is not None and cycle_index % 50 == 0:
-        print(f"[PAYLOAD_CB] Last T→O from PLC: {last.hex(' ')}")
-
-    # Example payload: first byte mirrors PLC's first byte (or cycle index),
-    # remaining bytes are a simple pattern.
-    first = last[0] if last else (cycle_index & 0xFF)
-    return bytes([first] + [1, 2, 3, 4, 5, 6, 7, 8, 9])
+PLC_IP: Final = "192.168.0.10"   # TOYOPUC PLC IP
+PC_IP: Final = "192.168.0.37"    # Your PC IP on the same network
+CYCLE_TIME_S: Final = 0.05       # 50 ms
+O2T_SIZE: Final = 10
+T2O_SIZE: Final = 10
 
 
 def main() -> None:
-    # 1) PLC configuration
     plc_cfg = PLC(
-        ip="192.168.0.10",
+        ip=PLC_IP,
         tcp_port=44818,
-        udp_io_port=0x08AE,
+        udp_io_port=2222,
         t2o_assembly=101,
         o2t_assembly=100,
-        t2o_size_bytes=10,
-        o2t_size_bytes=10,
+        t2o_size_bytes=T2O_SIZE,
+        o2t_size_bytes=O2T_SIZE,
     )
 
-    # Bind host is your PC's IP on the PLC network
-    manager = EthernetIPManager(plc_cfg, bind_host="192.168.0.37")
+    drv = ToyopucDriver(plc_cfg, bind_host=PC_IP, cycle_time=CYCLE_TIME_S)
 
-    # 2) Open connection (TCP/UDP + RegisterSession + Forward Open)
-    ok = manager.open_connection(connect_timeout=30.0, handshake_timeout=30.0)
-    if not ok:
-        print("[MAIN] Failed to open connection / handshake.")
-        return
+    print("[MAIN] Waiting for PLC connection + Forward Open...")
+    drv.connect()
+    print("[MAIN] Connected. Cyclic I/O running in background.")
 
-    # 3) Start UDP cyclic I/O in background thread
-    manager.start_cyclic(
-        payload_callback=payload_callback,
-        cycle_time=0.05,  # 50 ms target
-    )
+    try:
+        # Periodically write some pattern and print last T→O
+        for i in range(20):
+            payload = bytes([(i & 0xFF)] + [1, 2, 3, 4, 5, 6, 7, 8, 9])
+            drv.write_o2t(payload)
 
-    print("[MAIN] Cyclic I/O running in background.")
-    while keyboard.is_pressed("q") is False:
-        time.sleep(0.1)
-    manager.stop_cyclic(wait=True)
-    manager.close()
-    print("[MAIN] Shutdown complete.")
+            time.sleep(0.5)
+            print(f"[MAIN] T→O payload: {drv.read_t2o_hex()}")
+
+        # Example: wait until bit 0 of first T→O byte is set
+        def bit0_is_set(data: bytes) -> bool:
+            return bool(data and (data[0] & 0x01))
+
+        print("[MAIN] Waiting for PLC to set bit 0 of first T→O byte...")
+        ok = drv.wait_for_t2o_condition(bit0_is_set, timeout_s=10.0)
+        print("[MAIN] Condition result:", ok)
+
+    finally:
+        print("[MAIN] Shutting down driver...")
+        drv.close()
+        print("[MAIN] Shutdown complete.")
 
 
 if __name__ == "__main__":
