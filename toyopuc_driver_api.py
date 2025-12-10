@@ -53,6 +53,9 @@ class ToyopucDriver:
         connect_timeout: Optional[float] = 30.0,
         handshake_timeout: Optional[float] = 30.0,
     ) -> None:
+        if self._connected:
+            raise RuntimeError("Already connected; call close() first")
+
         ok = self._manager.open_connection(
             connect_timeout=connect_timeout,
             handshake_timeout=handshake_timeout,
@@ -67,7 +70,6 @@ class ToyopucDriver:
             payload_callback=self._payload_callback,
             cycle_time=self._cycle_time,
         )
-
     def close(self) -> None:
         self._manager.stop_cyclic(wait=True)
         self._manager.close()

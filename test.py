@@ -1,4 +1,4 @@
-# main_toyopuc.py
+# test.py
 from __future__ import annotations
 
 import time
@@ -10,9 +10,12 @@ from toyopuc_driver_api import ToyopucDriver
 PLC_IP: Final = "192.168.0.10"   # TOYOPUC PLC IP
 PC_IP: Final = "192.168.0.37"    # Your PC IP on the same network
 CYCLE_TIME_S: Final = 0.05       # 50 ms
-O2T_SIZE: Final = 10
-T2O_SIZE: Final = 10
-
+O2T_SIZE: Final = 8
+T2O_SIZE: Final = 8
+LED_ON_PLC: Final=b"1111000000000000"
+LED_ON_PICO: Final=b"LED ON\r\n" 
+LED_OFF_PLC: Final=b"0011000000000000"
+LED_OFF_PICO: Final=b"LED OFF\r\n" 
 
 def main() -> None:
     plc_cfg = PLC(
@@ -30,28 +33,27 @@ def main() -> None:
     print("[MAIN] Waiting for PLC connection + Forward Open...")
     drv.connect()
     print("[MAIN] Connected. Cyclic I/O running in background.")
+    i=0
 
-    try:
-        # Periodically write some pattern and print last T→O
-        for i in range(20):
-            payload = bytes([(i & 0xFF)] + [1, 2, 3, 4, 5, 6, 7, 8, 9])
+    while True:
+        try:
+            payload = bytes([( i & 0xFF)] + [1, 2, 3, 4, 5, 6, 7, 8, 9])
+            i+=1
             drv.write_o2t(payload)
-
             time.sleep(0.5)
-            print(f"[MAIN] T→O payload: {drv.read_t2o_hex()}")
-
-        # Example: wait until bit 0 of first T→O byte is set
-        def bit0_is_set(data: bytes) -> bool:
-            return bool(data and (data[0] & 0x01))
-
-        print("[MAIN] Waiting for PLC to set bit 0 of first T→O byte...")
-        ok = drv.wait_for_t2o_condition(bit0_is_set, timeout_s=10.0)
-        print("[MAIN] Condition result:", ok)
-
-    finally:
-        print("[MAIN] Shutting down driver...")
-        drv.close()
-        print("[MAIN] Shutdown complete.")
+            receive=drv.read_t2o_hex()
+            print(f"[MAIN] T→O payload: {receive}")
+            #if receive == LED_ON_PLC:
+                #Serial.send (LED_ON_PICO)
+            #elif recieve == LED_OFF_PLC:
+                #Serial.send (LED_OFF_PICO)
+        
+        except KeyboardInterrupt:
+            break
+        finally:
+            print("[MAIN] Shutting down driver...")
+            drv.close()
+            print("[MAIN] Shutdown complete.")
 
 
 if __name__ == "__main__":
