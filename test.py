@@ -13,9 +13,9 @@ PC_IP: Final = "192.168.0.37"    # Your PC IP on the same network
 CYCLE_TIME_S: Final = 0.05       # 50 ms
 O2T_SIZE: Final = 8
 T2O_SIZE: Final = 8
-LED_ON_PLC: Final="00 00 11 00 00 00 00 00"
+LED_ON_PLC: Final="00 00 11 11 00 00 00 00"
 LED_ON_PICO: Final=b"LED ON\r\n" 
-LED_OFF_PLC: Final="00 00 11 11 00 00 00 00"
+LED_OFF_PLC: Final="00 00 11 00 00 00 00 00"
 LED_OFF_PICO: Final=b"LED OFF\r\n" 
 PICO_PORT: Final="COM5"  # Adjust as needed
 
