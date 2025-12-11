@@ -1,6 +1,7 @@
 # test.py
 from __future__ import annotations
-
+from serial import Serial
+import threading
 import time
 from typing import Final
 
@@ -16,6 +17,15 @@ LED_ON_PLC: Final=b"1111000000000000"
 LED_ON_PICO: Final=b"LED ON\r\n" 
 LED_OFF_PLC: Final=b"0011000000000000"
 LED_OFF_PICO: Final=b"LED OFF\r\n" 
+
+def reader(ser):
+    while True:
+        line = ser.readline()   # read a '\n' terminated line
+        if line:
+            print(f"PICO:", line.decode('utf-8').rstrip())
+
+ser = Serial(port="COM3", baudrate=115200, timeout=0.5)
+threading.Thread(target=reader, args=(ser,), daemon=True).start()
 
 def main() -> None:
     plc_cfg = PLC(
@@ -43,11 +53,12 @@ def main() -> None:
             time.sleep(0.5)
             receive=drv.read_t2o_hex()
             print(f"[MAIN] T→O payload: {receive}")
-            #if receive == LED_ON_PLC:
-                #Serial.send (LED_ON_PICO)
-            #elif recieve == LED_OFF_PLC:
-                #Serial.send (LED_OFF_PICO)
-        
+            if receive == LED_ON_PLC:
+                ser.write(LED_ON_PICO)
+                ser.flush()
+            elif receive == LED_OFF_PLC:
+                ser.write(LED_OFF_PICO)
+                ser.flush()
         except KeyboardInterrupt:
             break
         finally:
