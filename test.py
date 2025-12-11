@@ -19,14 +19,8 @@ LED_OFF_PLC: Final="00 00 11 11 00 00 00 00"
 LED_OFF_PICO: Final=b"LED OFF\r\n" 
 PICO_PORT: Final="COM5"  # Adjust as needed
 
-def reader(ser):
-    while True:
-        line = ser.readline()   # read a '\n' terminated line
-        if line:
-            print(f"PICO:", line.decode('utf-8').rstrip())
-
 ser = Serial(port=PICO_PORT, baudrate=115200, timeout=0.5)
-threading.Thread(target=reader, args=(ser,), daemon=True).start()
+
 
 def main() -> None:
     plc_cfg = PLC(
@@ -45,15 +39,23 @@ def main() -> None:
     drv.connect()
     print("[MAIN] Connected. Cyclic I/O running in background.")
     i=0
-
+    count=True
     while True:
         try:
             payload = bytes([( i & 0xFF)] + [1, 2, 3, 4, 5, 6, 7, 8, 9])
-            i+=1
+            if count:
+                i+=1
             drv.write_o2t(payload)
             time.sleep(0.5)
             receive=drv.read_t2o_hex()
             print(f"[MAIN] T→O payload: {receive}")
+            line = ser.readline()   # read a '\n' terminated line
+            if line:
+                recv=line.decode('utf-8').rstrip()
+                print(f"PICO:", recv)
+                if recv=="Button Pressed":
+                    count=(count!=True)
+                    print(count)
             if receive == LED_ON_PLC:
                 ser.write(LED_ON_PICO)
                 ser.flush()
